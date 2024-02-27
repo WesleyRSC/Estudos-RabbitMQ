@@ -1,8 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using RabbitMQ.Client;
 using RabbitMq_Messaging.Models;
+using RabbitMq_Messaging.Options;
 using System.Text;
 
 namespace RabbitMq_Messaging.Controllers
@@ -10,19 +12,16 @@ namespace RabbitMq_Messaging.Controllers
     [Route("api/[controller]")]
     public class MessagesController : Controller
     {
-        private readonly IConfiguration _configuration;
+        private readonly RabbitMqConfiguration _config;
         private readonly ConnectionFactory _factory;
-        private readonly string _queueName;
-        private readonly string _hostName;      
 
-        public MessagesController(IConfiguration configuration)
+        public MessagesController(IOptions<RabbitMqConfiguration> option)
         {
-            _queueName = _configuration.GetValue<string>("QueueName");
-            _hostName = _configuration.GetValue<string>("HostName");
-            _configuration = configuration;
+            _config = option.Value;
+
             _factory = new ConnectionFactory
             {
-                HostName = "localhost"
+                HostName = _config.Host
             };
         }
 
@@ -35,7 +34,7 @@ namespace RabbitMq_Messaging.Controllers
                 using (var channel = connection.CreateModel())
                 {
                     channel.QueueDeclare(
-                        queue: _queueName,
+                        queue: _config.Queue,
                         durable: false,
                         exclusive: false,
                         autoDelete: false,
@@ -47,7 +46,7 @@ namespace RabbitMq_Messaging.Controllers
 
                     channel.BasicPublish(
                         exchange: "",
-                        routingKey: _queueName,
+                        routingKey: _config.Queue,
                         basicProperties: null,
                         body: bytesMessage
                     );
